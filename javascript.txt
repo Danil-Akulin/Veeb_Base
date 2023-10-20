@@ -1,0 +1,195 @@
+import React, { useEffect, useRef, useState } from 'react';
+import './App.css';
+
+  function App() {
+  const idRef = useRef();
+  const nameRef = useRef();
+  const priceRef = useRef();
+  const isActiveRef = useRef();
+  let isMultiplied = false;
+  const [tooted, setTooted] = useState([]);
+  
+
+  useEffect(() => {
+    fetch("https://localhost:4444/tooted")
+      .then(res => res.json())
+      .then(json => {
+        if (Array.isArray(json)) {
+          setTooted(json);
+        } else {
+          // Если данные не являются массивом, оберните их в массив
+          setTooted([json]);
+        }
+      });
+  }, []);
+
+function kustuta(id) {
+  fetch(`https://localhost:4444/tooted/kustuta/${id}`, { method: "DELETE" })
+    .then(res => {
+      if (res.status === 200) {
+        return res.json();
+      } else {
+        throw new Error("Ошибка при удалении товара");
+      }
+    })
+    .then(json => {
+      setTooted(json);
+    })
+    .catch(error => {
+      console.error(error.message);
+    });
+}
+
+  
+
+function lisa() {
+  // Получение данных из рефов
+  const name = nameRef.current.value;
+  const price = Number(priceRef.current.value);
+  const isActive = isActiveRef.current.checked;
+  window.location.reload();
+  // Создание объекта для отправки на сервер
+  const newData = {
+    name,
+    price,
+    isActive
+  };
+
+  fetch("https://localhost:4444/tooted", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(newData)
+  })
+    .then(res => {
+      if (res.status === 200) {
+        return res.json();
+      } else {
+        throw new Error("Не удалось добавить товар в базу данных");
+      }
+    })
+    .then(json => {
+      setTooted(json);
+      // Очистить поля ввода после успешного добавления
+      nameRef.current.value = "";
+      priceRef.current.value = "";
+      isActiveRef.current.checked = false;
+      // Перезагрузить страницу после успешного выполнения
+      window.location.reload();
+    })
+    .catch(error => {
+      console.error("Ошибка при добавлении товара:", error);
+    });
+}
+
+  
+
+
+  function dollariteks() {
+    // Определяем курс и ссылку на сервер один раз, вне функции
+    const kurss = 1.1;
+    const serverURL = "https://localhost:4444/tooted/hind-dollaritesse/";
+  
+    // Если число уже умножено, то нужно вернуть его в исходное состояние
+    if (isMultiplied) {
+      fetch(serverURL + (1 / kurss), { method: "PATCH" })
+        .then((res) => {
+          if (res.status === 204) {
+            // Если сервер возвращает статус 204 No Content, это означает успешное выполнение
+            // Вы можете выполнить здесь любые дополнительные действия
+            return null;
+          }
+          return res.json();
+        })
+        .then((json) => {
+          if (json) {
+            // Обработка полученных данных, например, вызов setTooted(json);
+            setTooted(json);
+          }
+          // После возврата числа в исходное состояние, меняем флаг
+          isMultiplied = false;
+          // Перезагрузить страницу
+          window.location.reload();
+        })
+        .catch((error) => {
+          console.error("Ошибка при обработке ответа от сервера:", error);
+        });
+    } else {
+      // Если число не умножено, то умножаем его
+      fetch(serverURL + kurss, { method: "PATCH" })
+        .then((res) => {
+          if (res.status === 204) {
+            // Если сервер возвращает статус 204 No Content, это означает успешное выполнение
+            // Вы можете выполнить здесь любые дополнительные действия
+            return null;
+          }
+          return res.json();
+        })
+        .then((json) => {
+          if (json) {
+            // Обработка полученных данных, например, вызов setTooted(json);
+            setTooted(json);
+          }
+          // После умножения числа, меняем флаг
+          isMultiplied = true;
+          // Перезагрузить страницу
+          window.location.reload();
+        })
+        .catch((error) => {
+          console.error("Ошибка при обработке ответа от сервера:", error);
+        });
+    }
+  }
+  
+  
+
+
+  // Функция для выполнения платежа
+  function makePayment(sum) {
+    fetch(`https://localhost:4444/payment/${sum}`)
+      .then(res => res.json())
+      .then(paymentLink => {
+        // Выполняем переход по ссылке для оплаты
+        window.location.href = paymentLink;
+      })
+      .catch(error => {
+        console.error("Ошибка при выполнении платежа:", error);
+      });
+      window.location.reload();
+  }
+
+  return (
+    <div className="App">
+      <label>ID</label> <br />
+      <input ref={idRef} type="number" /> <br />
+      <label>Nimi</label> <br />
+      <input ref={nameRef} type="text" /> <br />
+      <label>Hind</label> <br />
+      <input ref={priceRef} type="number" /> <br />
+      <label>Aktiivне</label> <br />
+      <input ref={isActiveRef} type="checkbox" /> <br />
+      <button onClick={() => lisa()}>Lisa</button>
+      {Array.isArray(tooted) ? (
+  tooted.map((toode, index) => (
+    <div key={index}>
+      <div>{toode.id}</div>
+      <div>{toode.name}</div>
+      <div>{toode.price}</div>
+      <button onClick={() => kustuta(toode.id)}>x</button>
+
+
+      {/* Добавляем кнопку для выполнения платежа для каждого продукта */}
+      <button onClick={() => makePayment(toode.price)}>Оплатить</button>
+    </div>
+      ))
+      ) : (
+      <div>Данные не являются массивом</div>
+      )}
+      <button onClick={() => dollariteks()}>Muuda dollariteks</button>
+      
+      
+    </div>
+  );
+      };
+export default App;
